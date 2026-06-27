@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wanderwallet - architecture & workflow guide</title>
+    <style>
+      :root {
+        --bg: #0a0a0f;
+        --card: rgba(255, 255, 255, 0.035);
+        --border: rgba(255, 255, 255, 0.09);
+        --text: #ececf2;
+        --muted: #9a9aae;
+        --accent: #a855f7;
+        --accent2: #ec4899;
+        --code-bg: #14141c;
+        --ok: #34d399;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 16px/1.65 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      }
+      .wrap { max-width: 860px; margin: 0 auto; padding: 48px 22px 120px; }
+      header.hero {
+        border-radius: 20px;
+        padding: 40px 32px;
+        background:
+          radial-gradient(120% 120% at 0% 0%, rgba(168, 85, 247, 0.35), transparent 60%),
+          radial-gradient(120% 120% at 100% 0%, rgba(236, 72, 153, 0.25), transparent 55%),
+          rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border);
+        margin-bottom: 40px;
+      }
+      header.hero h1 { margin: 0 0 8px; font-size: 2.4rem; letter-spacing: -0.02em; }
+      header.hero p { margin: 0; color: var(--muted); font-size: 1.05rem; }
+      h2 {
+        margin: 56px 0 16px;
+        font-size: 1.55rem;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border);
+      }
+      h3 { margin: 30px 0 10px; font-size: 1.15rem; color: #fff; }
+      p, li { color: #d6d6de; }
+      a { color: var(--accent); }
+      code {
+        background: var(--code-bg);
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.88em;
+        color: #e9d5ff;
+      }
+      pre {
+        background: var(--code-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px 18px;
+        overflow-x: auto;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.85rem;
+        line-height: 1.5;
+      }
+      pre code { background: none; padding: 0; color: #cdd3de; }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 18px 20px;
+        margin: 18px 0;
+      }
+      .note {
+        border-left: 3px solid var(--accent);
+        background: rgba(168, 85, 247, 0.08);
+        padding: 12px 16px;
+        border-radius: 0 10px 10px 0;
+        margin: 18px 0;
+      }
+      .why { border-left-color: var(--ok); background: rgba(52, 211, 153, 0.08); }
+      table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 0.92rem; }
+      th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+      th { color: #fff; }
+      .toc { columns: 2; column-gap: 28px; }
+      .toc a { display: block; padding: 3px 0; color: #c9b8e8; text-decoration: none; }
+      .toc a:hover { color: #fff; }
+      .pill {
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        padding: 3px 9px;
+        border-radius: 999px;
+        background: rgba(168, 85, 247, 0.18);
+        color: #d8b4fe;
+        vertical-align: middle;
+      }
+      .flow {
+        font-family: ui-monospace, monospace;
+        font-size: 0.82rem;
+        white-space: pre;
+        color: #cdd3de;
+        background: var(--code-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px;
+        overflow-x: auto;
+      }
+      footer { margin-top: 80px; color: var(--muted); font-size: 0.85rem; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="hero">
+        <h1>Wanderwallet</h1>
+        <p>
+          A from-scratch walkthrough of how this app is built and how the work is
+          run like a professional team. Written so you can reuse the patterns on
+          your next project.
+        </p>
+      </header>
+
+      <div class="card">
+        <strong>How to read this.</strong>
+        Two halves. The first half is the <em>app</em>: what it does, the
+        architecture, the stack, the data model, and how one request flows end to
+        end. The second half is the <em>workflow</em>: the Git, CI, review, and
+        deployment habits that make a hobby project look and behave like
+        industry work. Each major decision has a
+        <span class="pill">WHY</span> box so you learn the reasoning, not just
+        the recipe.
+      </div>
+
+      <nav class="toc card">
+        <a href="#what">1. What the app is</a>
+        <a href="#architecture">2. Architecture at a glance</a>
+        <a href="#stack">3. The stack, and why each piece</a>
+        <a href="#data">4. Data model and the money problem</a>
+        <a href="#lifecycle">5. One request, end to end</a>
+        <a href="#auth">6. Auth and access control</a>
+        <a href="#workflow">7. The professional workflow</a>
+        <a href="#git">8. Git: branches, commits, PRs</a>
+        <a href="#ci">9. CI and branch protection</a>
+        <a href="#testing">10. Testing and verification</a>
+        <a href="#deploy">11. Deployment and ops</a>
+        <a href="#checklist">12. Reusable checklist</a>
+      </nav>
+
+      <h2 id="what">1. What the app is</h2>
+      <p>
+        Wanderwallet is a shared travel-expense tracker for two people on a trip.
+        You log spending four ways: type it in the app, snap a receipt photo, or
+        send a photo or a text message to a Telegram bot. A receipt photo or a
+        text like "lunch 240 thb" is read by an LLM, turned into structured data,
+        and dropped into one shared ledger with budget tracking, a category
+        breakdown, and correct per-currency totals.
+      </p>
+      <p>
+        It is self-hosted on a single small server (a VPS). That one constraint
+        drives most of the architecture: because it is always-on and single
+        process, we avoid a whole class of infrastructure that serverless hosting
+        would have forced on us.
+      </p>
+
+      <h2 id="architecture">2. Architecture at a glance</h2>
+      <div class="flow">          Internet (mobile browser + Telegram)
+                         |
+                  Caddy (auto-HTTPS, 443)
+                         |
+        +----------------+------------------------+
+        |   Next.js (one Node process, next start) |
+        |                                          |
+        |  React UI -- /api routes -- Auth (Google)|
+        |       |           |                      |
+        |   capture writes Expense(PROCESSING),    |
+        |       |    enqueues a Job, returns ~200ms|
+        |   SSE feed    in-process worker loop      |
+        |       ^           | drains the Job table  |
+        |       |           v                       |
+        |   EventEmitter <- LLM parse + FX convert  |
+        +-------+-----------+----------------------+
+                |                      |
+          Prisma (one client)   storage (local disk)
+                |                      |
+            SQLite (WAL)        /var/lib/.../uploads
+                |                      |
+        Litestream -> B2     restic -> B2 (nightly)</div>
+      <div class="note why">
+        <span class="pill">WHY ONE PROCESS</span>
+        SQLite allows a single writer at a time. If two processes write the same
+        file you get lock errors. By running the web server, the API, the
+        Telegram handler, and the background worker all inside one Node process
+        with one database client, there is exactly one writer and the whole
+        contention problem disappears. This is why no Redis, no separate queue
+        service, and no separate worker process are needed at this scale.
+      </div>
+      <p>
+        The phases reflect this. P0 was the skeleton (auth, schema, single-process
+        boot). <strong>P1, the phase this guide ships with, is the synchronous
+        core:</strong> the data model, money math, FX conversion, manual entry,
+        and the dashboard that reads it all back. The harder async machinery
+        (background jobs, live updates, the Telegram bot, vision parsing) is built
+        on top in P2 and P3, reusing the exact same expense shape P1 defines.
+      </p>
+      <div class="note why">
+        <span class="pill">WHY THIS ORDER</span>
+        Prove the cheap, deterministic path first. Manual entry exercises the
+        whole data model and money logic with no AI and no async timing involved.
+        Once that is correct and visible end to end, the async paths only have to
+        add "do it in the background" - they do not have to also debug the data
+        model at the same time. Build the risky thing on top of a thing you have
+        already proven.
+      </div>
+
+      <h2 id="stack">3. The stack, and why each piece</h2>
+      <table>
+        <tr><th>Layer</th><th>Choice</th><th>Why</th></tr>
+        <tr><td>Framework</td><td>Next.js 16 (App Router, TypeScript)</td><td>One codebase for UI + API + server. Server Components fetch data directly from the database with no separate API layer to maintain.</td></tr>
+        <tr><td>Database</td><td>SQLite via Prisma 7</td><td>Two users, low volume. A file-based DB needs zero setup, is trivially backed up, and is fast enough. Prisma gives a typed schema and migrations.</td></tr>
+        <tr><td>DB driver</td><td>better-sqlite3 adapter</td><td>Synchronous, fast, and works with Prisma's driver-adapter API. Lets us set WAL mode at boot.</td></tr>
+        <tr><td>Auth</td><td>Auth.js v5 (Google OAuth)</td><td>Battle-tested session handling. No passwords to store. Database sessions so we can revoke and inspect them.</td></tr>
+        <tr><td>Validation</td><td>Zod</td><td>One schema validates the request body and gives TypeScript types for free. Untrusted input never reaches the database unchecked.</td></tr>
+        <tr><td>Styling</td><td>Plain CSS (no framework)</td><td>The whole UI is a handful of components. A CSS framework would be more bytes and more concepts than the job needs.</td></tr>
+        <tr><td>FX rates</td><td>Frankfurter (ECB data)</td><td>Free, no API key, official European Central Bank rates. Cached daily so we do not refetch.</td></tr>
+      </table>
+      <div class="note why">
+        <span class="pill">WHY PORTABLE-BY-DEFAULT</span>
+        The schema avoids SQLite-only tricks: string IDs (<code>cuid</code>)
+        instead of auto-increment, no reliance on a JSON column type, money as
+        plain integers. The payoff: if the app ever outgrows SQLite, moving to
+        PostgreSQL is a config change, not a rewrite. Choosing the small tool now
+        without painting yourself into a corner later is a senior move.
+      </div>
+
+      <h2 id="data">4. Data model and the money problem</h2>
+      <p>
+        The core tables: <code>Trip</code> has many <code>Expense</code>s; each
+        expense is paid by a <code>User</code> with an optional
+        <code>PaymentMethod</code>; a parsed receipt can have many
+        <code>LineItem</code>s. Background work lives in a <code>Job</code> table,
+        and daily exchange rates in <code>FxRate</code>.
+      </p>
+      <h3>Never store money as a floating-point number</h3>
+      <p>
+        <code>0.1 + 0.2</code> is not <code>0.3</code> in floating point. For
+        money that is a bug waiting to happen. The fix is to store
+        <strong>integer minor units</strong>: $5.00 is stored as the integer
+        <code>500</code>. All math is integer math; you only divide for display.
+      </p>
+      <div class="note why">
+        <span class="pill">WHY NOT JUST "CENTS"</span>
+        "Multiply by 100" is wrong for the Japanese yen. The yen has no smaller
+        unit - 1 yen is already the minor unit. Treating &yen;1500 as 150000
+        inflates it 100x. So every currency carries its own decimal count
+        (USD/EUR = 2, JPY = 0), and conversions go through that. See
+        <code>src/lib/money.ts</code> and its tests in
+        <code>src/lib/money.test.ts</code>.
+      </div>
+      <pre><code>// src/lib/money.ts
+toMinor(12.5, "USD")   // 1250
+toMinor(1500, "JPY")   // 1500  (not 150000)
+fmt(524000, "USD")     // "$5,240.00"
+fmt(1500, "JPY")       // "¥1,500"</code></pre>
+      <h3>Foreign exchange, stored at capture time</h3>
+      <p>
+        A trip has one base currency. An expense in another currency is converted
+        and we store <em>both</em> amounts plus the exact rate used. Storing the
+        rate makes history reproducible and auditable: a rate change tomorrow
+        never silently rewrites what you spent yesterday. Rates are fetched once
+        per day and cached in <code>FxRate</code>; if the network fails we fall
+        back to the last known rate rather than blocking a capture.
+      </p>
+
+      <h2 id="lifecycle">5. One request, end to end</h2>
+      <p>The manual-add path, which is all of P1, step by step:</p>
+      <ol>
+        <li><strong>UI</strong> - <code>QuickAdd.tsx</code> (a Client Component) collects amount, currency, category, payer, and posts JSON to <code>/api/expenses</code>.</li>
+        <li><strong>Auth</strong> - the route calls <code>requireUser()</code>; no valid session, no entry.</li>
+        <li><strong>Validation</strong> - Zod parses the body. Bad input returns <code>400</code> before any database call.</li>
+        <li><strong>Authorization</strong> - <code>requireMember(tripId)</code> confirms this user actually belongs to that trip. Authentication ("who are you") and authorization ("are you allowed") are separate checks.</li>
+        <li><strong>Money + FX</strong> - amount becomes integer minor units; if the currency differs from the trip base, convert using today's rate and record it.</li>
+        <li><strong>Write</strong> - one <code>Expense</code> row, status <code>CONFIRMED</code> (manual entries are trusted, so no background job).</li>
+        <li><strong>Refresh</strong> - the client calls <code>router.refresh()</code>; the Server Component re-queries and re-renders the dashboard with the new total. No manual cache juggling.</li>
+      </ol>
+      <div class="note">
+        The async paths (photo, Telegram) differ only in step 5-6: they save a
+        <code>PROCESSING</code> row, enqueue a <code>Job</code>, return
+        immediately, and a worker later fills in the parsed data and flips the
+        status. Same table, same shape - that is the reuse P1 was designed to set up.
+      </div>
+
+      <h2 id="auth">6. Auth and access control</h2>
+      <p>
+        Sign-in is Google OAuth through Auth.js, with sessions stored in the
+        database. Two helpers in <code>src/lib/session.ts</code> are the only
+        gate the rest of the code needs: <code>requireUser()</code> (must be
+        signed in) and <code>requireMember(tripId)</code> (must belong to that
+        trip). Every API route and protected page calls one of them first.
+      </p>
+      <div class="note why">
+        <span class="pill">WHY A DEV BYPASS, GATED</span>
+        Google credentials are not wired yet, so a dev-only fallback lets us view
+        the dashboard locally as a seeded user. It is hard-gated to
+        <code>NODE_ENV !== "production"</code>, so it can never run on the real
+        server. This is the right way to take a shortcut: make it impossible for
+        the shortcut to reach production, and label it for removal.
+      </div>
+
+      <h2 id="workflow">7. The professional workflow</h2>
+      <p>
+        Everything below is what separates "code that works on my machine" from
+        "code a team can trust." None of it is heavy. It is a few habits enforced
+        by tooling so they happen every time instead of when you remember.
+      </p>
+
+      <h2 id="git">8. Git: branches, commits, pull requests</h2>
+      <h3>Never commit straight to main</h3>
+      <p>
+        <code>main</code> is the always-deployable branch. New work happens on a
+        short-lived branch, then merges back through a pull request (PR). This
+        keeps <code>main</code> green and gives every change a review surface and
+        a revert point.
+      </p>
+      <pre><code>git checkout -b p1-expense-core   # branch for the feature
+# ... do the work ...
+git push -u origin p1-expense-core
+gh pr create --fill               # open a PR
+# CI runs on the PR; merge when it is green</code></pre>
+      <h3>Conventional Commits</h3>
+      <p>
+        Commit subjects follow a small grammar:
+        <code>type: summary</code>. Common types: <code>feat</code> (new
+        capability), <code>fix</code> (bug), <code>chore</code> (tooling/config),
+        <code>ci</code>, <code>docs</code>, <code>refactor</code>. The subject
+        says <em>what</em> in under ~50 characters; the body explains
+        <em>why</em> when it is not obvious.
+      </p>
+      <pre><code>feat: P0 scaffold - Prisma schema, Auth.js, WAL
+chore: project docs and CI
+ci: add GitHub Actions workflow (lint, typecheck, build)</code></pre>
+      <div class="note why">
+        <span class="pill">WHY THE GRAMMAR</span>
+        A consistent prefix makes history scannable, lets tools auto-generate
+        changelogs, and forces you to commit one logical change at a time. If you
+        cannot write a single clean subject, the commit is probably doing too
+        much.
+      </div>
+
+      <h2 id="ci">9. CI and branch protection</h2>
+      <p>
+        <strong>CI (Continuous Integration)</strong> is an automated check that
+        runs on every push and PR. Ours lives in
+        <code>.github/workflows/ci.yml</code> and runs four steps on a clean
+        machine: install dependencies, generate the Prisma client, then
+        <code>lint</code>, <code>typecheck</code>, and <code>build</code>. If any
+        fails, the PR is marked red.
+      </p>
+      <pre><code>- run: npm ci            # clean, reproducible install
+- run: npx prisma generate
+- run: npm run lint      # style + correctness rules
+- run: npm run typecheck # tsc --noEmit, no type errors
+- run: npm run build     # it actually compiles</code></pre>
+      <div class="note why">
+        <span class="pill">WHY "ON A CLEAN MACHINE"</span>
+        "Works on my machine" usually means an uncommitted file or a globally
+        installed tool. CI starts from nothing but the repo, so it catches the
+        thing you forgot to commit. Green CI means a fresh clone will build.
+      </div>
+      <h3>Branch protection</h3>
+      <p>
+        A rule on <code>main</code> turns the workflow from "please remember" into
+        "cannot skip." On this repo: a PR is required to merge, the
+        <code>build</code> check must be green, history must stay linear, and
+        force-pushes and deletes are blocked. The CI run on dummy environment
+        variables proves the build needs no real secrets to compile.
+      </p>
+
+      <h2 id="testing">10. Testing and verification</h2>
+      <p>
+        Not everything needs a test, but money math does - it is exact logic with
+        edge cases. <code>money.test.ts</code> uses Node's built-in test runner
+        (no framework to install) to lock in the rules that matter: yen is not
+        treated as cents, floating-point dust is rounded away, conversions respect
+        the target currency's decimals.
+      </p>
+      <div class="note why">
+        <span class="pill">WHY VERIFY, NOT ASSUME</span>
+        P1 was not called "done" because it compiled. It was run: seed the
+        database, start the server, load the dashboard, add a real expense, and
+        confirm the total moved from $5,212.20 to $5,284.70 and the breakdown
+        updated. A change is finished when you have watched it work, not when you
+        expect it to.
+      </div>
+
+      <h2 id="deploy">11. Deployment and ops</h2>
+      <table>
+        <tr><th>Concern</th><th>Tool</th><th>Role</th></tr>
+        <tr><td>Process</td><td>systemd</td><td>Runs <code>next start</code> as a non-root user, restarts on crash, starts on boot, caps memory.</td></tr>
+        <tr><td>HTTPS + proxy</td><td>Caddy</td><td>Automatic TLS certificates and reverse-proxy to the local Node port. Simpler than Nginx for one service.</td></tr>
+        <tr><td>DB backup</td><td>Litestream</td><td>Continuously streams the SQLite file to cloud storage, so a dead server rebuilds with near-zero data loss.</td></tr>
+        <tr><td>File backup</td><td>restic</td><td>Nightly encrypted backup of uploaded receipt images.</td></tr>
+      </table>
+      <div class="note why">
+        <span class="pill">WHY A SINGLE WRITER STILL NEEDS WAL</span>
+        SQLite's WAL (write-ahead logging) mode lets readers and the writer work
+        at the same time without blocking, and <code>busy_timeout</code> makes a
+        contended write wait-and-retry instead of erroring. Both are set once at
+        boot in <code>instrumentation.ts</code>. Small database, but still tuned
+        for correctness under concurrent reads.
+      </div>
+
+      <h2 id="checklist">12. Reusable checklist for your next project</h2>
+      <div class="card">
+        <strong>Before writing features</strong>
+        <ul>
+          <li>Pick the smallest infrastructure that fits the real scale, but keep the schema portable.</li>
+          <li>Decide the data model and the "hard" representations (money, dates, currency) up front.</li>
+          <li>Initialize Git, add a real README and a license, set up <code>.gitignore</code> so secrets and local DBs can never be committed.</li>
+        </ul>
+        <strong>While building</strong>
+        <ul>
+          <li>One feature per branch, one logical change per commit, conventional commit messages.</li>
+          <li>Validate every untrusted input at the boundary; separate authentication from authorization.</li>
+          <li>Prove the deterministic path before the async or AI path.</li>
+          <li>Leave one runnable test behind any non-trivial logic (especially money and security).</li>
+        </ul>
+        <strong>Before merging</strong>
+        <ul>
+          <li>CI green on a clean machine: lint, typecheck, build.</li>
+          <li>Branch protection so the rules cannot be skipped.</li>
+          <li>Actually run the app and watch the change work, then merge via PR.</li>
+        </ul>
+        <strong>Before shipping to a server</strong>
+        <ul>
+          <li>Process manager with auto-restart, HTTPS, least-privilege user.</li>
+          <li>Automated, tested backups - an untested backup is not a backup.</li>
+          <li>Never log secrets, raw user messages, or file contents.</li>
+        </ul>
+      </div>
+
+      <footer>
+        Wanderwallet - built and documented as a learning portfolio project.
+        Repo: github.com/MatanNoam1/wanderwallet
+      </footer>
+    </div>
+  </body>
+</html>

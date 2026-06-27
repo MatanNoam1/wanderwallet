@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Wanderwallet
 
-## Getting Started
+Shared travel expense tracker for two people. Snap a receipt or send a Telegram
+message and an LLM extracts the structured data into a shared dashboard with
+budget tracking, category breakdown, and per-currency totals. Self-hosted on a
+single VPS.
 
-First, run the development server:
+> Status: building. P0 (scaffold, schema, auth) complete. P1 (manual entry +
+> dashboard) in progress. See the roadmap below.
+
+## Why
+
+Manual trip expense tracking is tedious, especially when two people split costs.
+Wanderwallet has four capture channels feeding one shared ledger:
+
+- App camera (snap a receipt)
+- App manual entry
+- Telegram photo
+- Telegram text ("lunch 240 thb")
+
+Receipts and messages are parsed by Gemini (vision + text), normalized to a
+single trip ledger, and shown on a dark dashboard.
+
+## Stack
+
+- **Next.js 16** (App Router, TypeScript)
+- **Prisma 7** + **SQLite** (`better-sqlite3` adapter, WAL mode)
+- **Auth.js v5** (Google OAuth, database sessions)
+- **Gemini** for receipt/text parsing
+- **Telegram Bot API** via webhook
+- Money stored as **integer minor units** (JPY=0 decimals, USD/EUR=2)
+
+No Redis. Background work runs through a SQLite job table + in-process worker,
+realtime via SSE. Deploys as a single Next process behind Caddy, DB backed up
+with Litestream.
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env        # fill in AUTH_SECRET (npx auth secret) + Google creds
+npx prisma migrate dev      # apply schema
+npm run dev                 # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` come from the Google Cloud Console
+(redirect URI `http://localhost:3000/api/auth/callback/google` for dev).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | What |
+|---------|------|
+| `npm run dev` | Dev server |
+| `npm run build` | Production build |
+| `npm run start` | Run production build |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | `tsc --noEmit` |
 
-## Learn More
+## Roadmap
 
-To learn more about Next.js, take a look at the following resources:
+- **P0** — scaffold, Prisma schema + migration, Auth.js Google login, WAL mode ✅
+- **P1** — money/FX helpers, manual expense entry, dashboard read
+- **P2** — job table + worker + SSE, Telegram webhook + text parse
+- **P3** — app camera + Telegram photo + vision parse + line items
+- **P4** — budget/breakdown, payment methods, CSV + PDF export
+- **P5** — signed image route, Litestream + restic backups, server hardening
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Contributing
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Work happens on feature branches merged via pull request. CI (lint, typecheck,
+build) must pass before merge. See `.github/pull_request_template.md`.
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT - see [LICENSE](LICENSE).

@@ -1,0 +1,6 @@
+# /etc/caddy/Caddyfile
+# Automatic TLS (Let's Encrypt) + reverse proxy to the Next.js server.
+wanderwallet.example.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3000
+}

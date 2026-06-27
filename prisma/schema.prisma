@@ -1,0 +1,263 @@
+// Wanderwallet schema. SQLite now, kept Postgres-portable:
+// cuid PKs (no autoincrement), Prisma enums, UTC DateTimes, money as Int minor units.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ---------- Auth.js (Prisma adapter) ----------
+model User {
+  id             String             @id @default(cuid())
+  email          String             @unique
+  name           String?
+  image          String?
+  createdAt      DateTime           @default(now())
+  accounts       Account[]
+  sessions       Session[]
+  telegramLink   TelegramLink?
+  linkCodes      TelegramLinkCode[]
+  memberships    TripMember[]
+  paymentMethods PaymentMethod[]
+  ownedTrips     Trip[]             @relation("TripOwner")
+  paidExpenses   Expense[]          @relation("PaidBy")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------- Telegram linking ----------
+model TelegramLink {
+  id       String   @id @default(cuid())
+  userId   String   @unique
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatId   String   @unique
+  linkedAt DateTime @default(now())
+}
+
+// one-time codes minted in-app, redeemed by /link <code> in Telegram
+model TelegramLinkCode {
+  code      String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ---------- Trips / membership ----------
+model Trip {
+  id           String       @id @default(cuid())
+  name         String
+  destination  String?
+  startDate    DateTime?
+  endDate      DateTime?
+  baseCurrency String // ISO 4217
+  budgetMinor  Int? // budget in base-currency minor units
+  isActive     Boolean      @default(false)
+  ownerId      String
+  owner        User         @relation("TripOwner", fields: [ownerId], references: [id])
+  createdAt    DateTime     @default(now())
+  members      TripMember[]
+  expenses     Expense[]
+
+  @@index([ownerId])
+}
+
+model TripMember {
+  id           String     @id @default(cuid())
+  tripId       String
+  trip         Trip       @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  userId       String? // null until invitee first signs in
+  user         User?      @relation(fields: [userId], references: [id])
+  invitedEmail String
+  role         MemberRole @default(MEMBER)
+  createdAt    DateTime   @default(now())
+
+  @@unique([tripId, invitedEmail])
+  @@index([userId])
+}
+
+enum MemberRole {
+  OWNER
+  MEMBER
+}
+
+// ---------- Payment methods ----------
+model PaymentMethod {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String // "Visa ···4242", "Cash"
+  last4     String?
+  kind      PaymentKind @default(CARD)
+  archived  Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  expenses  Expense[]
+
+  @@index([userId])
+}
+
+enum PaymentKind {
+  CARD
+  CASH
+  OTHER
+}
+
+// ---------- Expenses (always a total, optionally line items) ----------
+model Expense {
+  id              String         @id @default(cuid())
+  tripId          String
+  trip            Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  paidById        String
+  paidBy          User           @relation("PaidBy", fields: [paidById], references: [id])
+  paymentMethodId String?
+  paymentMethod   PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+
+  merchant   String?
+  category   Category @default(OTHER)
+  note       String?
+  occurredAt DateTime @default(now())
+
+  // money: minor units of the ORIGINAL currency, plus converted to trip base
+  originalAmountMinor Int
+  originalCurrency    String
+  baseAmountMinor     Int
+  fxRate              Float? // original -> base; null when same currency
+  fxRateDate          DateTime?
+
+  source        ExpenseSource
+  status        ExpenseStatus @default(CONFIRMED)
+  ocrConfidence Float?
+  imagePath     String? // private path; served via signed route only
+  rawParseJson  String? // raw vision/LLM output, debugging
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  items     LineItem[]
+  job       Job?
+
+  @@index([tripId, occurredAt])
+  @@index([status])
+}
+
+enum Category {
+  FLIGHTS
+  HOTELS
+  FOOD
+  ACTIVITIES
+  SHOPPING
+  OTHER
+}
+
+enum ExpenseSource {
+  MANUAL
+  APP_PHOTO
+  TELEGRAM_PHOTO
+  TELEGRAM_TEXT
+}
+
+enum ExpenseStatus {
+  PROCESSING
+  NEEDS_REVIEW
+  CONFIRMED
+  FAILED
+}
+
+model LineItem {
+  id             String    @id @default(cuid())
+  expenseId      String
+  expense        Expense   @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  name           String
+  qty            Float     @default(1)
+  unitPriceMinor Int
+  lineTotalMinor Int
+  category       Category?
+
+  @@index([expenseId])
+}
+
+// ---------- Background jobs (the queue) ----------
+model Job {
+  id          String    @id @default(cuid())
+  type        JobType
+  expenseId   String?   @unique
+  expense     Expense?  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  status      JobStatus @default(QUEUED)
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3)
+  runAfter    DateTime  @default(now())
+  lastError   String?
+  payloadJson String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, runAfter])
+}
+
+enum JobType {
+  VISION_PARSE
+  TEXT_PARSE
+  FX_REFRESH
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+}
+
+// ---------- FX + Telegram dedupe ----------
+model FxRate {
+  id    String   @id @default(cuid())
+  base  String
+  quote String
+  rate  Float
+  date  DateTime
+
+  @@unique([base, quote, date])
+}
+
+model TelegramUpdate {
+  // idempotency for retried webhooks
+  updateId   String   @id
+  receivedAt DateTime @default(now())
+}

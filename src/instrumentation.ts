@@ -8,7 +8,6 @@ export async function register() {
   await prisma.$executeRawUnsafe("PRAGMA busy_timeout=5000;");
   console.log("[instrumentation] SQLite ready (WAL, busy_timeout=5000)");
 
-  // P2: boot the in-process worker here.
-  // const { startWorker } = await import("@/lib/worker");
-  // startWorker();
+  const { startWorker } = await import("@/lib/worker");
+  startWorker();
 }

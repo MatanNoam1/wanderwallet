@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { toMinor, convertMinor, fmt } from "@/lib/money";
 import { getRate } from "@/lib/fx";
 import { CATEGORY_KEYS } from "@/lib/categories";
+import { sendTelegramReply } from "@/lib/telegram";
 
 interface ParsePayload {
   text: string;
@@ -64,16 +65,6 @@ async function callGemini(text: string): Promise<GeminiParsed> {
   if (!CATEGORY_KEYS.includes(parsed.category as Category)) parsed.category = "OTHER";
 
   return parsed;
-}
-
-async function sendTelegramReply(chatId: string, text: string) {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  if (!token) return;
-  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text }),
-  });
 }
 
 export async function handleTextParse(job: Job): Promise<void> {

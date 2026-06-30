@@ -122,7 +122,7 @@ async function handleText(chatId: number, text: string) {
 export async function POST(req: Request) {
   // Verify Telegram's secret token header
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  if (secret && req.headers.get("x-telegram-bot-api-secret-token") !== secret) {
+  if (!secret || req.headers.get("x-telegram-bot-api-secret-token") !== secret) {
     return new Response("Forbidden", { status: 403 });
   }
 
@@ -142,12 +142,18 @@ export async function POST(req: Request) {
   const chatId = msg.chat.id;
   const text = msg.text.trim();
 
-  if (text.startsWith("/link ")) {
-    await handleLink(chatId, text.slice(6).trim());
-  } else if (text === "/start" || text === "/help") {
-    await reply(chatId, "Send an expense like \"$24 lunch\" or use /link <code> to connect your account.");
-  } else {
-    await handleText(chatId, text);
+  try {
+    if (text.startsWith("/link ")) {
+      await handleLink(chatId, text.slice(6).trim());
+    } else if (text === "/start" || text === "/help") {
+      await reply(chatId, "Send an expense like \"$24 lunch\" or use /link <code> to connect your account.");
+    } else {
+      await handleText(chatId, text);
+    }
+  } catch (err) {
+    // Roll back idempotency so Telegram can retry on handler failure
+    await prisma.telegramUpdate.delete({ where: { updateId: String(update.update_id) } }).catch(() => {});
+    throw err;
   }
 
   return new Response("OK");

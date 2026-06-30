@@ -7,5 +7,4 @@ const globalForEmitter = globalThis as unknown as { tripEmitter?: EventEmitter }
 export const tripEmitter =
   globalForEmitter.tripEmitter ?? new EventEmitter().setMaxListeners(100);
 
-if (process.env.NODE_ENV !== "production")
-  globalForEmitter.tripEmitter = tripEmitter;
+globalForEmitter.tripEmitter = tripEmitter;

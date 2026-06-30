@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { tripEmitter } from "@/lib/emitter";
-import { JobStatus, JobType } from "@prisma/client";
+import { ExpenseStatus, JobStatus, JobType } from "@prisma/client";
 
 const POLL_MS = 5_000;
 
@@ -69,6 +69,12 @@ async function execute(jobId: string) {
         ...(failed ? {} : { runAfter: new Date(Date.now() + backoffMs(job.attempts)) }),
       },
     });
+    if (failed && job.expenseId) {
+      await prisma.expense.update({
+        where: { id: job.expenseId },
+        data: { status: ExpenseStatus.FAILED },
+      });
+    }
     console.error(`[worker] ${job.type} ${jobId} ${failed ? "FAILED" : "retry in backoff"}:`, err);
   }
 }

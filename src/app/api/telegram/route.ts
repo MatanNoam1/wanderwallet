@@ -173,31 +173,35 @@ async function handlePhoto(chatId: number, photos: TgPhotoSize[]) {
   const ext = filePath.split(".").pop() ?? "jpg";
   const imagePath = await saveUpload(randomUUID(), buffer, ext);
 
-  const expense = await prisma.expense.create({
-    data: {
-      tripId: activeTrip.id,
-      paidById: link.userId,
-      source: ExpenseSource.TELEGRAM_PHOTO,
-      status: ExpenseStatus.PROCESSING,
-      originalAmountMinor: 0,
-      originalCurrency: activeTrip.baseCurrency,
-      baseAmountMinor: 0,
-      imagePath,
-    },
-  });
-
-  await prisma.job.create({
-    data: {
-      type: JobType.VISION_PARSE,
-      expenseId: expense.id,
-      status: JobStatus.QUEUED,
-      payloadJson: JSON.stringify({
-        imagePath,
-        chatId: String(chatId),
+  const expense = await prisma.$transaction(async (tx) => {
+    const exp = await tx.expense.create({
+      data: {
         tripId: activeTrip.id,
-        userId: link.userId,
-      }),
-    },
+        paidById: link.userId,
+        source: ExpenseSource.TELEGRAM_PHOTO,
+        status: ExpenseStatus.PROCESSING,
+        originalAmountMinor: 0,
+        originalCurrency: activeTrip.baseCurrency,
+        baseAmountMinor: 0,
+        imagePath,
+      },
+    });
+
+    await tx.job.create({
+      data: {
+        type: JobType.VISION_PARSE,
+        expenseId: exp.id,
+        status: JobStatus.QUEUED,
+        payloadJson: JSON.stringify({
+          imagePath,
+          chatId: String(chatId),
+          tripId: activeTrip.id,
+          userId: link.userId,
+        }),
+      },
+    });
+
+    return exp;
   });
 
   await sendTelegramReply(

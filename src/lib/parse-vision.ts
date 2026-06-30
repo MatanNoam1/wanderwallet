@@ -115,6 +115,14 @@ export async function handleVisionParse(job: Job): Promise<void> {
   });
 
   const parsed = await callGeminiVision(imagePath);
+
+  if (!parsed || typeof parsed.total !== "number" || !isFinite(parsed.total) || parsed.total <= 0) {
+    throw new Error(`Invalid Gemini Vision response: total=${parsed?.total}`);
+  }
+  if (!parsed.currency || parsed.currency.length !== 3) {
+    parsed.currency = trip.baseCurrency;
+  }
+
   const rate = await getRate(parsed.currency, trip.baseCurrency);
   const fields = mapVisionResult(parsed, trip.baseCurrency, rate);
 

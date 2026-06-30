@@ -43,26 +43,30 @@ export async function POST(req: Request) {
   const buffer = Buffer.from(await file.arrayBuffer());
   const imagePath = await saveUpload(randomUUID(), buffer, ext);
 
-  const expense = await prisma.expense.create({
-    data: {
-      tripId,
-      paidById: user.id,
-      source: ExpenseSource.APP_PHOTO,
-      status: ExpenseStatus.PROCESSING,
-      originalAmountMinor: 0,
-      originalCurrency: trip.baseCurrency,
-      baseAmountMinor: 0,
-      imagePath,
-    },
-  });
+  const expense = await prisma.$transaction(async (tx) => {
+    const exp = await tx.expense.create({
+      data: {
+        tripId,
+        paidById: user.id,
+        source: ExpenseSource.APP_PHOTO,
+        status: ExpenseStatus.PROCESSING,
+        originalAmountMinor: 0,
+        originalCurrency: trip.baseCurrency,
+        baseAmountMinor: 0,
+        imagePath,
+      },
+    });
 
-  await prisma.job.create({
-    data: {
-      type: JobType.VISION_PARSE,
-      expenseId: expense.id,
-      status: JobStatus.QUEUED,
-      payloadJson: JSON.stringify({ imagePath, tripId, userId: user.id }),
-    },
+    await tx.job.create({
+      data: {
+        type: JobType.VISION_PARSE,
+        expenseId: exp.id,
+        status: JobStatus.QUEUED,
+        payloadJson: JSON.stringify({ imagePath, tripId, userId: user.id }),
+      },
+    });
+
+    return exp;
   });
 
   return NextResponse.json({ expenseId: expense.id }, { status: 201 });

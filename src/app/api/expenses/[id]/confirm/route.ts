@@ -111,10 +111,10 @@ export async function PATCH(
       ? (JSON.parse(job.payloadJson) as { chatId?: string }).chatId
       : null;
     if (chatId) {
-      await sendTelegramReply(
+      sendTelegramReply(
         chatId,
         `Receipt confirmed: ${b.currency} ${b.amount}${b.merchant ? ` - ${b.merchant}` : ""}`
-      );
+      ).catch(() => {});
     }
   }
 

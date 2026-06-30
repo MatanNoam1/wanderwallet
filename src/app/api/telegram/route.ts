@@ -1,10 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { ExpenseSource, ExpenseStatus, JobStatus, JobType } from "@prisma/client";
 import { sendTelegramReply } from "@/lib/telegram";
+import { saveUpload } from "@/lib/uploads";
+import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 
 // ---------- Telegram types (only fields we use) ----------
+interface TgPhotoSize {
+  file_id: string;
+  file_size?: number;
+  width: number;
+  height: number;
+}
+
 interface TgUser {
   id: number;
 }
@@ -18,6 +27,7 @@ interface TgMessage {
   from?: TgUser;
   chat: TgChat;
   text?: string;
+  photo?: TgPhotoSize[];
 }
 
 interface TgUpdate {
@@ -108,6 +118,95 @@ async function handleText(chatId: number, text: string) {
   console.log(`[telegram] queued TEXT_PARSE job for expense ${expense.id}`);
 }
 
+async function handlePhoto(chatId: number, photos: TgPhotoSize[]) {
+  const link = await prisma.telegramLink.findUnique({
+    where: { chatId: String(chatId) },
+  });
+  if (!link) {
+    await sendTelegramReply(String(chatId), "Not linked yet. Open Wanderwallet -> Settings -> Link Telegram.");
+    return;
+  }
+
+  const activeTrip = await prisma.trip.findFirst({
+    where: {
+      isActive: true,
+      OR: [
+        { ownerId: link.userId },
+        { members: { some: { userId: link.userId } } },
+      ],
+    },
+    select: { id: true, baseCurrency: true },
+  });
+  if (!activeTrip) {
+    await sendTelegramReply(String(chatId), "No active trip found. Start a trip in the app first.");
+    return;
+  }
+
+  const largest = photos[photos.length - 1];
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) {
+    await sendTelegramReply(String(chatId), "Bot is not configured. Please contact support.");
+    return;
+  }
+
+  const fileRes = await fetch(
+    `https://api.telegram.org/bot${token}/getFile?file_id=${largest.file_id}`
+  );
+  if (!fileRes.ok) {
+    await sendTelegramReply(String(chatId), "Could not retrieve photo. Please try again.");
+    return;
+  }
+  const fileData = (await fileRes.json()) as { result?: { file_path?: string } };
+  const filePath = fileData.result?.file_path;
+  if (!filePath) {
+    await sendTelegramReply(String(chatId), "Could not retrieve photo. Please try again.");
+    return;
+  }
+
+  const photoRes = await fetch(`https://api.telegram.org/file/bot${token}/${filePath}`);
+  if (!photoRes.ok) {
+    await sendTelegramReply(String(chatId), "Could not download photo. Please try again.");
+    return;
+  }
+
+  const buffer = Buffer.from(await photoRes.arrayBuffer());
+  const ext = filePath.split(".").pop() ?? "jpg";
+  const imagePath = await saveUpload(randomUUID(), buffer, ext);
+
+  const expense = await prisma.expense.create({
+    data: {
+      tripId: activeTrip.id,
+      paidById: link.userId,
+      source: ExpenseSource.TELEGRAM_PHOTO,
+      status: ExpenseStatus.PROCESSING,
+      originalAmountMinor: 0,
+      originalCurrency: activeTrip.baseCurrency,
+      baseAmountMinor: 0,
+      imagePath,
+    },
+  });
+
+  await prisma.job.create({
+    data: {
+      type: JobType.VISION_PARSE,
+      expenseId: expense.id,
+      status: JobStatus.QUEUED,
+      payloadJson: JSON.stringify({
+        imagePath,
+        chatId: String(chatId),
+        tripId: activeTrip.id,
+        userId: link.userId,
+      }),
+    },
+  });
+
+  await sendTelegramReply(
+    String(chatId),
+    "Got your receipt - processing now. I will send you a review link when ready."
+  );
+  console.log(`[telegram] queued VISION_PARSE job for expense ${expense.id}`);
+}
+
 // ---------- Webhook entry ----------
 export async function POST(req: Request) {
   // Verify Telegram's secret token header
@@ -127,22 +226,30 @@ export async function POST(req: Request) {
   }
 
   const msg = update.message;
-  if (!msg?.text) return new Response("OK"); // ignore non-text (photos handled in P3)
+  if (!msg) return new Response("OK");
 
   const chatId = msg.chat.id;
-  const text = msg.text.trim();
+  const text = msg.text?.trim() ?? "";
 
   try {
-    if (text.startsWith("/link ")) {
+    if (msg.photo && msg.photo.length > 0) {
+      await handlePhoto(chatId, msg.photo);
+    } else if (!text) {
+      // non-text, non-photo message (sticker, location, etc.) - ignore
+    } else if (text.startsWith("/link ")) {
       await handleLink(chatId, text.slice(6).trim());
     } else if (text === "/start" || text === "/help") {
-      await sendTelegramReply(String(chatId), "Send an expense like \"$24 lunch\" or use /link <code> to connect your account.");
+      await sendTelegramReply(
+        String(chatId),
+        "Send an expense like \"$24 lunch\" or use /link <code> to connect your account."
+      );
     } else {
       await handleText(chatId, text);
     }
   } catch (err) {
-    // Roll back idempotency so Telegram can retry on handler failure
-    await prisma.telegramUpdate.delete({ where: { updateId: String(update.update_id) } }).catch(() => {});
+    await prisma.telegramUpdate
+      .delete({ where: { updateId: String(update.update_id) } })
+      .catch(() => {});
     throw err;
   }
 

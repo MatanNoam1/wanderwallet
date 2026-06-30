@@ -5,6 +5,7 @@ import { getActiveTrip, buildSummary, tripPeople, getPendingExpenses } from "@/l
 import { TopBar } from "@/components/TopBar";
 import { HeroTripCard } from "@/components/HeroTripCard";
 import { QuickAdd } from "@/components/QuickAdd";
+import { PhotoAdd } from "@/components/PhotoAdd";
 import { SpendingDonut } from "@/components/SpendingDonut";
 import { ExpenseFeed } from "@/components/ExpenseFeed";
 
@@ -46,6 +47,7 @@ export default async function Home() {
       <TopBar subtitle="Shared trip account" />
       <HeroTripCard trip={trip} summary={summary} />
       <QuickAdd tripId={trip.id} people={people} methods={methods} />
+      <PhotoAdd tripId={trip.id} />
       {pending.length > 0 && (
         <section className="card">
           <h2 className="card-title">Needs review ({pending.length})</h2>

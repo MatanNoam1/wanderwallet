@@ -34,8 +34,11 @@ async function execute(jobId: string) {
         await handleTextParse(job);
         break;
       }
-      case JobType.VISION_PARSE:
-        throw new Error("VISION_PARSE not implemented (P3)");
+      case JobType.VISION_PARSE: {
+        const { handleVisionParse } = await import("@/lib/parse-vision");
+        await handleVisionParse(job);
+        break;
+      }
       case JobType.FX_REFRESH:
         throw new Error("FX_REFRESH not implemented");
       default:

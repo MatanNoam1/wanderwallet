@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ExpenseSource, ExpenseStatus, JobStatus, JobType } from "@prisma/client";
+import { sendTelegramReply } from "@/lib/telegram";
 
 export const runtime = "nodejs";
 
@@ -24,23 +25,12 @@ interface TgUpdate {
   message?: TgMessage;
 }
 
-// ---------- Send a reply via Bot API ----------
-async function reply(chatId: number, text: string) {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  if (!token) return; // silently skip in dev before bot is created
-  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text }),
-  });
-}
-
 // ---------- Handlers ----------
 async function handleLink(chatId: number, code: string) {
   const linkCode = await prisma.telegramLinkCode.findUnique({ where: { code } });
 
   if (!linkCode || linkCode.expiresAt < new Date()) {
-    await reply(chatId, "Code not found or expired. Generate a new one in the app.");
+    await sendTelegramReply(String(chatId), "Code not found or expired. Generate a new one in the app.");
     return;
   }
 
@@ -53,7 +43,7 @@ async function handleLink(chatId: number, code: string) {
     prisma.telegramLinkCode.delete({ where: { code } }),
   ]);
 
-  await reply(chatId, "Linked! Send me an expense like \"$24 lunch\" and I'll add it.");
+  await sendTelegramReply(String(chatId), "Linked! Send me an expense like \"$24 lunch\" and I'll add it.");
 }
 
 async function handleText(chatId: number, text: string) {
@@ -62,7 +52,7 @@ async function handleText(chatId: number, text: string) {
   });
 
   if (!link) {
-    await reply(chatId, "Not linked yet. Open Wanderwallet -> Settings -> Link Telegram.");
+    await sendTelegramReply(String(chatId), "Not linked yet. Open Wanderwallet -> Settings -> Link Telegram.");
     return;
   }
 
@@ -78,7 +68,7 @@ async function handleText(chatId: number, text: string) {
   });
 
   if (!activeTrip) {
-    await reply(chatId, "No active trip found. Start a trip in the app first.");
+    await sendTelegramReply(String(chatId), "No active trip found. Start a trip in the app first.");
     return;
   }
 
@@ -114,7 +104,7 @@ async function handleText(chatId: number, text: string) {
     return { expense };
   });
 
-  await reply(chatId, `Got it - processing "${text}". Check the app in a moment.`);
+  await sendTelegramReply(String(chatId), `Got it - processing "${text}". Check the app in a moment.`);
   console.log(`[telegram] queued TEXT_PARSE job for expense ${expense.id}`);
 }
 
@@ -146,7 +136,7 @@ export async function POST(req: Request) {
     if (text.startsWith("/link ")) {
       await handleLink(chatId, text.slice(6).trim());
     } else if (text === "/start" || text === "/help") {
-      await reply(chatId, "Send an expense like \"$24 lunch\" or use /link <code> to connect your account.");
+      await sendTelegramReply(String(chatId), "Send an expense like \"$24 lunch\" or use /link <code> to connect your account.");
     } else {
       await handleText(chatId, text);
     }

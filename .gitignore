@@ -49,5 +49,4 @@ next-env.d.ts
 *.db-wal
 *.db-shm
 /prisma/*.db*
-/uploads/*
-!/uploads/.gitkeep
+uploads/

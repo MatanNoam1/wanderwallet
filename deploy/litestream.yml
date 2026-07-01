@@ -1,11 +1,11 @@
-# /opt/wanderwallet/deploy/litestream.yml
+# deploy/litestream.yml
 # Continuously replicates the app's SQLite DB to Cloudflare R2 (S3-compatible).
+# Runs in the litestream sidecar container - see deploy/docker-compose.yml.
 # Litestream reads AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY from the process
-# environment automatically (set via deploy/backup.env, injected by
-# litestream.service's EnvironmentFile= directive) - no credentials appear
-# in this file.
+# environment automatically (injected via compose's env_file: deploy/backup.env)
+# - no credentials appear in this file.
 dbs:
-  - path: /opt/wanderwallet/dev.db
+  - path: /app/data/dev.db
     replicas:
       - type: s3
         bucket: ${R2_BUCKET}

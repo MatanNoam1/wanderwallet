@@ -56,17 +56,23 @@ npm run dev                 # http://localhost:3000
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
 
+## Deploy
+
+Runs as a Docker Compose stack: the app, Caddy (reverse proxy + automatic
+HTTPS), Litestream (continuous SQLite replication), and restic (daily
+uploads backup), all defined in `deploy/docker-compose.yml`. Start with
+`docker compose -f deploy/docker-compose.yml up -d` from the repo root.
+Requires `.env` (copy from `.env.example`) and `deploy/backup.env` (copy
+from `deploy/backup.env.example`) both present at the repo root first.
+
 ## Backups
 
-Production deploys replicate the SQLite DB continuously with
-[Litestream](https://litestream.io) and back up the `uploads/` directory
-daily with [restic](https://restic.net), both to a Cloudflare R2 bucket.
-Config lives in `deploy/` (`litestream.yml`, `litestream.service`,
-`backup-uploads.sh`, `wanderwallet-backup.service`,
-`wanderwallet-backup.timer`). Credentials go in `deploy/backup.env` (copy
-from `deploy/backup.env.example`, gitignored, never committed). VPS
-provisioning and service activation are covered in the deploy runbook, not
-in this repo.
+Litestream replicates the SQLite DB continuously and restic backs up the
+`uploads/` directory daily, both to a Cloudflare R2 bucket, running as
+sidecar containers in the compose stack (`deploy/litestream.yml`,
+`deploy/backup-uploads.sh`). Credentials go in `deploy/backup.env`
+(gitignored, never committed). VPS provisioning, DNS, and API-key
+acquisition are covered in the deploy runbook, not in this repo.
 
 ## Roadmap
 

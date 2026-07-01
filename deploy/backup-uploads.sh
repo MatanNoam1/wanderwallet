@@ -1,22 +1,25 @@
-#!/usr/bin/env bash
-# Daily backup of the uploads/ directory (receipt images) to Cloudflare R2
-# via restic. Triggered by wanderwallet-backup.timer -> wanderwallet-backup.service.
-set -euo pipefail
+#!/bin/sh
+# Daily backup of the uploads volume (receipt images) to Cloudflare R2 via
+# restic. Runs in the restic sidecar container - see deploy/docker-compose.yml.
+# Credentials come from deploy/backup.env via compose's env_file:, already
+# present in this container's environment - no sourcing needed here.
+set -eu
 
-cd /opt/wanderwallet
+backup_once() {
+  if ! restic snapshots >/dev/null 2>&1; then
+    echo "restic repository not initialized, running restic init"
+    restic init
+  fi
 
-set -a
-source deploy/backup.env
-set +a
+  restic backup /data/uploads --tag wanderwallet-uploads
 
-# First run: initialize the restic repository if it doesn't exist yet.
-if ! restic snapshots >/dev/null 2>&1; then
-  echo "restic repository not initialized, running restic init"
-  restic init
-fi
+  # Keep 7 daily, 4 weekly, 6 monthly snapshots; prune anything older, so
+  # storage growth stays bounded without manual attention.
+  restic forget --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
+}
 
-restic backup uploads/ --tag wanderwallet-uploads
-
-# Keep 7 daily, 4 weekly, 6 monthly snapshots; prune anything older, so
-# storage growth stays bounded without manual attention.
-restic forget --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
+# The restic image has no cron - loop with a daily sleep instead.
+while true; do
+  backup_once
+  sleep 86400
+done

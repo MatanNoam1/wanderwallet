@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/lib/money.test.ts",
+    "test": "node --experimental-strip-types --experimental-test-module-mocks --test src/lib/money.test.ts src/lib/trip.test.ts",
     "seed": "node --experimental-strip-types prisma/seed.ts"
   },
   "dependencies": {

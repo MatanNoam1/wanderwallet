@@ -1,5 +1,5 @@
-import { prisma } from "./prisma";
-import { categoryMeta } from "./categories";
+import { prisma } from "./prisma.ts";
+import { categoryMeta } from "./categories.ts";
 
 // Loads the user's active trip and rolls expenses up into the numbers the
 // dashboard renders. All money here is in the trip's BASE currency minor units.
@@ -83,3 +83,14 @@ export async function getPendingExpenses(userId: string) {
     orderBy: { createdAt: "desc" },
   });
 }
+
+export function buildPersonBreakdown(trip: ActiveTrip) {
+  const byPerson = new Map<string, { name: string; minor: number }>();
+  for (const e of trip.expenses) {
+    const prev = byPerson.get(e.paidById) ?? { name: e.paidBy.name ?? "?", minor: 0 };
+    byPerson.set(e.paidById, { name: prev.name, minor: prev.minor + e.baseAmountMinor });
+  }
+  return [...byPerson.values()].sort((a, b) => b.minor - a.minor);
+}
+
+export type PersonBreakdown = ReturnType<typeof buildPersonBreakdown>;

@@ -75,6 +75,9 @@ export default async function Home() {
         </section>
       )}
       <SpendingDonut summary={summary} currency={trip.baseCurrency} />
+      <Link href="/breakdown" className="btn-ghost" style={{ textAlign: "center", display: "block" }}>
+        See full breakdown
+      </Link>
       <ExpenseFeed trip={trip} />
     </main>
   );

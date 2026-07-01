@@ -20,7 +20,7 @@ This means wanderwallet's Caddy runs in its own compose stack (not registered wi
 
 Single `docker-compose.yml` stack, 4 services:
 
-- **`app`** - the Next.js server. Multi-stage Dockerfile: a build stage (`npm ci`, `npx prisma generate`, `npm run build`) and a slim runtime stage that copies only the Next.js `standalone` output + production `node_modules`. Not published to the host - only reachable from `caddy` over the compose network. Runs `npx prisma migrate deploy` before starting the server, so schema migrations apply automatically on every deploy.
+- **`app`** - the Next.js server. Multi-stage Dockerfile: a build stage (`npm ci`, `npx prisma generate`, `npm run build`) and a runtime stage that copies the full `node_modules`, `.next` build output, `public/`, and `prisma/` from the build stage, then runs `npm run start`. Not published to the host - only reachable from `caddy` over the compose network. Runs `npx prisma migrate deploy` before starting the server, so schema migrations apply automatically on every deploy.
 - **`caddy`** - official `caddy` image, binds `80:80` and `443:443` on the host, mounts an adapted `deploy/Caddyfile`, reverse-proxies to `app`'s internal port. A named volume persists Let's Encrypt certificates across container restarts (so a redeploy doesn't re-trigger ACME issuance and hit Let's Encrypt's rate limits).
 - **`litestream`** - official `litestream/litestream` image, shares `app`'s SQLite volume (same file, read-write, since Litestream tails the live WAL), replicates continuously to Cloudflare R2. Same config shape as the merged P7's `litestream.yml`, paths adjusted for the container's filesystem instead of `/opt/wanderwallet`.
 - **`restic`** - a small image with `restic` installed, running a `while true; sleep 86400; restic backup ...; done`-style loop instead of a systemd timer (containers don't have cron by default; a sleep loop is the standard sidecar pattern for a daily job that doesn't need sub-second scheduling precision). Shares `app`'s uploads volume read-only (restic only reads, never writes, the uploads directory).
@@ -50,7 +50,8 @@ Single `docker-compose.yml` stack, 4 services:
 - `Dockerfile` (repo root)
 - `deploy/docker-compose.yml`
 - `.dockerignore` (repo root) - excludes `node_modules`, `.next`, `.git`, `uploads/`, `*.db*`, `.env` from the build context.
-- `next.config.ts` gets `output: "standalone"` added - this is the standard Next.js setting for Docker deploys, produces a self-contained `server.js` plus a minimal `node_modules` subset instead of copying the entire dependency tree into the runtime image. Small, directly-motivated change (not scope creep - without it the runtime image ships the full `node_modules`, several times larger for no benefit).
+
+**Not used:** Next's `output: "standalone"` build mode. It's the usual recommendation for Docker deploys because it prunes `node_modules` to only what the app's own code needs, but this app also runs `npx prisma migrate deploy` as a startup step - the Prisma CLI has its own dependency tree (including `prisma`, `@prisma/*` packages, and transitively `dotenv` for `prisma.config.ts`) that Next's file tracer has no reason to include, since the CLI isn't `require()`-d by app code. Hand-copying just enough of that tree into a pruned `node_modules` is fragile and easy to silently break on a future `npm update`. Copying the full `node_modules` from the build stage instead is simpler and correct by construction; the image is a few hundred MB larger, which doesn't matter for a personal, low-traffic app.
 
 ## Base image choice
 

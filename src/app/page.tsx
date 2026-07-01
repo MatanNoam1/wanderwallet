@@ -79,6 +79,9 @@ export default async function Home() {
         See full breakdown
       </Link>
       <ExpenseFeed trip={trip} />
+      <Link href="/expenses" className="btn-ghost" style={{ textAlign: "center", display: "block" }}>
+        View all expenses
+      </Link>
     </main>
   );
 }

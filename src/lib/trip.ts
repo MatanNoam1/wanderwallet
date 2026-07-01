@@ -94,3 +94,26 @@ export function buildPersonBreakdown(trip: ActiveTrip) {
 }
 
 export type PersonBreakdown = ReturnType<typeof buildPersonBreakdown>;
+
+export type ExpenseFilter = {
+  category?: string;
+  paidById?: string;
+};
+
+export async function getFilteredExpenses(tripId: string, filter: ExpenseFilter = {}) {
+  return prisma.expense.findMany({
+    where: {
+      tripId,
+      status: "CONFIRMED",
+      ...(filter.category ? { category: filter.category as never } : {}),
+      ...(filter.paidById ? { paidById: filter.paidById } : {}),
+    },
+    orderBy: { occurredAt: "desc" },
+    include: {
+      paidBy: { select: { id: true, name: true } },
+      paymentMethod: { select: { label: true } },
+    },
+  });
+}
+
+export type FilteredExpense = Awaited<ReturnType<typeof getFilteredExpenses>>[number];

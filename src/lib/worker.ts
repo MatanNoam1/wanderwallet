@@ -1,6 +1,8 @@
+import { unlink } from "fs/promises";
 import { prisma } from "@/lib/prisma";
 import { tripEmitter } from "@/lib/emitter";
 import { ExpenseStatus, JobStatus, JobType } from "@prisma/client";
+import { uploadAbsPath } from "@/lib/uploads";
 
 const POLL_MS = 5_000;
 
@@ -70,10 +72,16 @@ async function execute(jobId: string) {
       },
     });
     if (failed && job.expenseId) {
-      await prisma.expense.update({
+      const exp = await prisma.expense.update({
         where: { id: job.expenseId },
         data: { status: ExpenseStatus.FAILED },
+        select: { imagePath: true },
       });
+      if (exp.imagePath) {
+        await unlink(uploadAbsPath(exp.imagePath)).catch((unlinkErr) => {
+          console.error(`[worker] failed to delete upload for expense ${job.expenseId}:`, unlinkErr);
+        });
+      }
     }
     console.error(`[worker] ${job.type} ${jobId} ${failed ? "FAILED" : "retry in backoff"}:`, err);
   }

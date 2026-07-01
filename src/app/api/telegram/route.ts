@@ -207,7 +207,9 @@ async function handlePhoto(chatId: number, photos: TgPhotoSize[]) {
   await sendTelegramReply(
     String(chatId),
     "Got your receipt - processing now. I will send you a review link when ready."
-  );
+  ).catch((err) => {
+    console.error(`[telegram] failed to send photo-ack reply for expense ${expense.id}:`, err);
+  });
   console.log(`[telegram] queued VISION_PARSE job for expense ${expense.id}`);
 }
 

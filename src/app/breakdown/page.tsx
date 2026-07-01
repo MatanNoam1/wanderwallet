@@ -51,8 +51,8 @@ export default async function BreakdownPage() {
           <p className="muted">No expenses yet.</p>
         ) : (
           <ul className="feed">
-            {people.map((p, i) => (
-              <li key={i} className="feed-row">
+            {people.map((p) => (
+              <li key={p.name} className="feed-row">
                 <div className="feed-main">
                   <div className="feed-title">{p.name}</div>
                   <div className="feed-sub muted">

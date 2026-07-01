@@ -1,5 +1,6 @@
 import { prisma } from "./prisma.ts";
 import { categoryMeta } from "./categories.ts";
+import type { CategoryKey } from "./categories.ts";
 
 // Loads the user's active trip and rolls expenses up into the numbers the
 // dashboard renders. All money here is in the trip's BASE currency minor units.
@@ -96,7 +97,7 @@ export function buildPersonBreakdown(trip: ActiveTrip) {
 export type PersonBreakdown = ReturnType<typeof buildPersonBreakdown>;
 
 export type ExpenseFilter = {
-  category?: string;
+  category?: CategoryKey;
   paidById?: string;
 };
 
@@ -105,7 +106,7 @@ export async function getFilteredExpenses(tripId: string, filter: ExpenseFilter 
     where: {
       tripId,
       status: "CONFIRMED",
-      ...(filter.category ? { category: filter.category as never } : {}),
+      ...(filter.category ? { category: filter.category } : {}),
       ...(filter.paidById ? { paidById: filter.paidById } : {}),
     },
     orderBy: { occurredAt: "desc" },

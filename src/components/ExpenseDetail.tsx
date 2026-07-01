@@ -60,9 +60,9 @@ export function ExpenseDetail({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          merchant: merchant || undefined,
+          merchant: merchant.trim(),
           category,
-          note: note || undefined,
+          note: note.trim(),
           paidById,
           paymentMethodId: methodId || null,
         }),

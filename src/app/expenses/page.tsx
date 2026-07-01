@@ -5,8 +5,12 @@ import { getActiveTrip, getFilteredExpenses, tripPeople } from "@/lib/trip";
 import { TopBar } from "@/components/TopBar";
 import { ExpenseFilters } from "@/components/ExpenseFilters";
 import { fmt } from "@/lib/money";
-import { categoryMeta } from "@/lib/categories";
+import { categoryMeta, CATEGORY_KEYS, type CategoryKey } from "@/lib/categories";
 import { Suspense } from "react";
+
+function toValidCategory(value: string | undefined): CategoryKey | undefined {
+  return CATEGORY_KEYS.includes(value as CategoryKey) ? (value as CategoryKey) : undefined;
+}
 
 export default async function ExpensesPage({
   searchParams,
@@ -19,7 +23,7 @@ export default async function ExpensesPage({
 
   const { category, paidBy } = await searchParams;
   const expenses = await getFilteredExpenses(trip.id, {
-    category: category ?? undefined,
+    category: toValidCategory(category),
     paidById: paidBy ?? undefined,
   });
   const people = tripPeople(trip);

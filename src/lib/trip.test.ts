@@ -44,10 +44,34 @@ test("single payer accumulates all expenses", () => {
   assert.equal(result[0].minor, 1000);
 });
 
-// getFilteredExpenses filter shape - the function itself is DB-bound, but
-// we verify the filter logic compiles and produces valid Prisma where clauses
-// by checking the type exports work at compile time. No assertion needed here
-// beyond tsc passing.
-import type { ExpenseFilter } from "./trip.ts";
-const _f: ExpenseFilter = { category: "FOOD", paidById: "abc" };
-void _f;
+import { matchesExpenseFilter } from "./trip.ts";
+
+test("matchesExpenseFilter: no filter matches any confirmed expense", () => {
+  const expense = { category: "FOOD", paidById: "a", status: "CONFIRMED" };
+  assert.equal(matchesExpenseFilter(expense, {}), true);
+});
+
+test("matchesExpenseFilter: category filter matches same category", () => {
+  const expense = { category: "FOOD", paidById: "a", status: "CONFIRMED" };
+  assert.equal(matchesExpenseFilter(expense, { category: "FOOD" }), true);
+});
+
+test("matchesExpenseFilter: category filter rejects different category", () => {
+  const expense = { category: "FOOD", paidById: "a", status: "CONFIRMED" };
+  assert.equal(matchesExpenseFilter(expense, { category: "HOTELS" }), false);
+});
+
+test("matchesExpenseFilter: paidById filter matches same payer", () => {
+  const expense = { category: "FOOD", paidById: "a", status: "CONFIRMED" };
+  assert.equal(matchesExpenseFilter(expense, { paidById: "a" }), true);
+});
+
+test("matchesExpenseFilter: paidById filter rejects different payer", () => {
+  const expense = { category: "FOOD", paidById: "a", status: "CONFIRMED" };
+  assert.equal(matchesExpenseFilter(expense, { paidById: "b" }), false);
+});
+
+test("matchesExpenseFilter: non-CONFIRMED status never matches, even with no filter", () => {
+  const expense = { category: "FOOD", paidById: "a", status: "NEEDS_REVIEW" };
+  assert.equal(matchesExpenseFilter(expense, {}), false);
+});

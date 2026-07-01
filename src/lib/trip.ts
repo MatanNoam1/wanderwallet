@@ -101,6 +101,19 @@ export type ExpenseFilter = {
   paidById?: string;
 };
 
+/** Pure predicate mirroring the where-clause built in getFilteredExpenses below. */
+export function matchesExpenseFilter(
+  expense: { category: string; paidById: string; status: string },
+  filter: ExpenseFilter,
+): boolean {
+  if (expense.status !== "CONFIRMED") return false;
+  if (filter.category && expense.category !== filter.category) return false;
+  if (filter.paidById && expense.paidById !== filter.paidById) return false;
+  return true;
+}
+
+// Caller must have already verified the current user is a member of tripId
+// (e.g. via getActiveTrip(userId)) - this function does not check membership itself.
 export async function getFilteredExpenses(tripId: string, filter: ExpenseFilter = {}) {
   return prisma.expense.findMany({
     where: {

@@ -11,7 +11,7 @@ const MAYA_EMAIL = "maya@wanderwallet.dev";
 const THEO_EMAIL = "theo@wanderwallet.dev";
 
 // Fixed seed FX rates (1 unit -> USD). Real rates come from Frankfurter at runtime.
-const RATES: Record<string, number> = { EUR: 1.08, JPY: 0.0064 };
+const RATES: Record<string, number> = { EUR: 1.08, ILS: 0.275 };
 
 function rate(from: string): number {
   return from === "USD" ? 1 : (RATES[from] ?? 1);
@@ -81,7 +81,7 @@ async function main() {
     { merchant: "Return flight · booked in EU", category: "FLIGHTS", currency: "EUR", amount: 540, payer: theo.id, method: amex.id, occurredAt: daysAgo(16) },
     { merchant: "Universal Studios · 2 tickets", category: "ACTIVITIES", currency: "USD", amount: 240, payer: theo.id, method: amex.id, occurredAt: daysAgo(17) },
     { merchant: "Vintage store · Brooklyn", category: "SHOPPING", currency: "USD", amount: 95, payer: maya.id, method: visa.id, occurredAt: daysAgo(18) },
-    { merchant: "Tokyo-style ramen · Little Tokyo", category: "FOOD", currency: "JPY", amount: 45000, payer: maya.id, method: visa.id, occurredAt: daysAgo(2) },
+    { merchant: "Duty-free · Tel Aviv", category: "SHOPPING", currency: "ILS", amount: 350, payer: maya.id, method: visa.id, occurredAt: daysAgo(2) },
   ] as const;
 
   for (const r of rows) {

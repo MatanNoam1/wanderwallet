@@ -334,3 +334,58 @@ a {
   font-weight: 700;
   text-align: right;
 }
+
+/* ---------- review page ---------- */
+.btn-danger {
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 14px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.btn-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.review-img {
+  width: 100%;
+  border-radius: 12px;
+  object-fit: contain;
+  max-height: 300px;
+  background: rgba(255, 255, 255, 0.04);
+}
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+.items-table th {
+  text-align: left;
+  color: var(--muted);
+  padding: 4px 6px;
+  font-weight: 600;
+}
+.items-table td {
+  padding: 6px;
+  border-bottom: 1px solid var(--card-border);
+}
+.items-table input {
+  background: transparent;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 4px 6px;
+  width: 100%;
+  font-size: 0.82rem;
+}
+.review-actions {
+  display: flex;
+  gap: 10px;
+}
+.review-actions .btn-primary,
+.review-actions .btn-danger {
+  flex: 1;
+}

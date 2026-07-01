@@ -63,3 +63,23 @@ export function tripPeople(trip: ActiveTrip) {
   }
   return [...people.values()];
 }
+
+export async function getPendingExpenses(userId: string) {
+  return prisma.expense.findMany({
+    where: {
+      status: { in: ["PROCESSING", "NEEDS_REVIEW"] },
+      trip: {
+        OR: [{ ownerId: userId }, { members: { some: { userId } } }],
+      },
+    },
+    select: {
+      id: true,
+      status: true,
+      source: true,
+      merchant: true,
+      category: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}

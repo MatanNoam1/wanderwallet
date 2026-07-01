@@ -81,7 +81,8 @@ export function ExpenseDetail({
     if (!confirm("Delete this expense? This cannot be undone.")) return;
     setDeleting(true);
     try {
-      await fetch(`/api/expenses/${expense.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/expenses/${expense.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
       router.push("/");
     } catch {
       setError("Delete failed.");
@@ -169,13 +170,13 @@ export function ExpenseDetail({
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "16px" }}>
           <input
-            className="input"
+            className="text-input"
             placeholder="Merchant"
             value={merchant}
             onChange={(e) => setMerchant(e.target.value)}
           />
           <select
-            className="input"
+            className="text-input"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
@@ -184,7 +185,7 @@ export function ExpenseDetail({
             ))}
           </select>
           <select
-            className="input"
+            className="text-input"
             value={paidById}
             onChange={(e) => setPaidById(e.target.value)}
           >
@@ -193,7 +194,7 @@ export function ExpenseDetail({
             ))}
           </select>
           <select
-            className="input"
+            className="text-input"
             value={methodId}
             onChange={(e) => setMethodId(e.target.value)}
           >
@@ -203,7 +204,7 @@ export function ExpenseDetail({
             ))}
           </select>
           <input
-            className="input"
+            className="text-input"
             placeholder="Note"
             value={note}
             onChange={(e) => setNote(e.target.value)}

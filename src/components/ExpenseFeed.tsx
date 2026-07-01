@@ -44,7 +44,7 @@ export function ExpenseFeed({ trip }: { trip: ActiveTrip }) {
                       {e.originalCurrency !== trip.baseCurrency && (
                         <span className="muted small">
                           {" "}
-                          = {fmt(e.baseAmountMinor, trip.baseCurrency)}
+                          ≈ {fmt(e.baseAmountMinor, trip.baseCurrency)}
                         </span>
                       )}
                     </div>
@@ -53,15 +53,6 @@ export function ExpenseFeed({ trip }: { trip: ActiveTrip }) {
               );
             })}
           </ul>
-          {trip.expenses.length > 8 && (
-            <Link
-              href="/expenses"
-              className="btn-ghost"
-              style={{ textAlign: "center", display: "block", marginTop: "8px" }}
-            >
-              View all {trip.expenses.length} expenses
-            </Link>
-          )}
         </>
       )}
     </section>

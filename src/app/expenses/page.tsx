@@ -67,7 +67,7 @@ export default async function ExpensesPage({
                       {fmt(e.originalAmountMinor, e.originalCurrency)}
                       {e.originalCurrency !== trip.baseCurrency && (
                         <span className="muted small">
-                          {" "}= {fmt(e.baseAmountMinor, trip.baseCurrency)}
+                          {" "}≈ {fmt(e.baseAmountMinor, trip.baseCurrency)}
                         </span>
                       )}
                     </div>

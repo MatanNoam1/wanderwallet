@@ -108,7 +108,7 @@ export function ExpenseDetail({
           </div>
           {expense.originalCurrency !== expense.baseCurrency && (
             <div className="muted small">
-              = {fmt(expense.baseAmountMinor, expense.baseCurrency)}
+              ≈ {fmt(expense.baseAmountMinor, expense.baseCurrency)}
             </div>
           )}
         </div>

@@ -50,3 +50,6 @@ next-env.d.ts
 *.db-shm
 /prisma/*.db*
 uploads/
+
+# git worktrees
+.worktrees/

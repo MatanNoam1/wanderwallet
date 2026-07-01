@@ -1,0 +1,10 @@
+# /etc/systemd/system/wanderwallet-backup.timer
+[Unit]
+Description=Run wanderwallet-backup.service daily
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target

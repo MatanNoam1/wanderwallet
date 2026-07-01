@@ -56,6 +56,18 @@ npm run dev                 # http://localhost:3000
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
 
+## Backups
+
+Production deploys replicate the SQLite DB continuously with
+[Litestream](https://litestream.io) and back up the `uploads/` directory
+daily with [restic](https://restic.net), both to a Cloudflare R2 bucket.
+Config lives in `deploy/` (`litestream.yml`, `litestream.service`,
+`backup-uploads.sh`, `wanderwallet-backup.service`,
+`wanderwallet-backup.timer`). Credentials go in `deploy/backup.env` (copy
+from `deploy/backup.env.example`, gitignored, never committed). VPS
+provisioning and service activation are covered in the deploy runbook, not
+in this repo.
+
 ## Roadmap
 
 - **P0** — scaffold, Prisma schema + migration, Auth.js Google login, WAL mode ✅

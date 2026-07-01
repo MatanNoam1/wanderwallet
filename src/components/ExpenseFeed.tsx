@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { fmt } from "@/lib/money";
 import { categoryMeta } from "@/lib/categories";
 import type { ActiveTrip } from "@/lib/trip";
@@ -19,33 +20,49 @@ export function ExpenseFeed({ trip }: { trip: ActiveTrip }) {
       {trip.expenses.length === 0 ? (
         <p className="muted">Nothing yet. Add your first expense above.</p>
       ) : (
-        <ul className="feed">
-          {trip.expenses.map((e) => {
-            const cat = categoryMeta(e.category);
-            return (
-              <li key={e.id} className="feed-row">
-                <div className="feed-icon" style={{ background: cat.color + "22" }}>
-                  {cat.icon}
-                </div>
-                <div className="feed-main">
-                  <div className="feed-title">{e.merchant ?? cat.label}</div>
-                  <div className="feed-sub muted">
-                    {e.paidBy.name ?? "?"} · {cat.label} · {when(e.occurredAt)}
-                  </div>
-                </div>
-                <div className="feed-amount">
-                  {fmt(e.originalAmountMinor, e.originalCurrency)}
-                  {e.originalCurrency !== trip.baseCurrency && (
-                    <span className="muted small">
-                      {" "}
-                      ≈ {fmt(e.baseAmountMinor, trip.baseCurrency)}
-                    </span>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          <ul className="feed">
+            {trip.expenses.slice(0, 8).map((e) => {
+              const cat = categoryMeta(e.category);
+              return (
+                <li key={e.id} className="feed-row">
+                  <Link
+                    href={`/expenses/${e.id}`}
+                    style={{ display: "contents", textDecoration: "none", color: "inherit" }}
+                  >
+                    <div className="feed-icon" style={{ background: cat.color + "22" }}>
+                      {cat.icon}
+                    </div>
+                    <div className="feed-main">
+                      <div className="feed-title">{e.merchant ?? cat.label}</div>
+                      <div className="feed-sub muted">
+                        {e.paidBy.name ?? "?"} · {cat.label} · {when(e.occurredAt)}
+                      </div>
+                    </div>
+                    <div className="feed-amount">
+                      {fmt(e.originalAmountMinor, e.originalCurrency)}
+                      {e.originalCurrency !== trip.baseCurrency && (
+                        <span className="muted small">
+                          {" "}
+                          = {fmt(e.baseAmountMinor, trip.baseCurrency)}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+          {trip.expenses.length > 8 && (
+            <Link
+              href="/expenses"
+              className="btn-ghost"
+              style={{ textAlign: "center", display: "block", marginTop: "8px" }}
+            >
+              View all {trip.expenses.length} expenses
+            </Link>
+          )}
+        </>
       )}
     </section>
   );

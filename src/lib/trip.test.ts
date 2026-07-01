@@ -1,13 +1,7 @@
-// Run: node --experimental-strip-types --experimental-test-module-mocks --test src/lib/trip.test.ts
-import { test, mock } from "node:test";
+// Run: node --experimental-strip-types --test src/lib/trip.test.ts
+import { test } from "node:test";
 import assert from "node:assert/strict";
-
-// Stub prisma so trip.ts can be imported without a real database.
-await mock.module(new URL("./prisma.ts", import.meta.url).href, {
-  namedExports: { prisma: {} },
-});
-
-const { buildPersonBreakdown } = await import("./trip.ts");
+import { buildPersonBreakdown } from "./trip.ts";
 import type { ActiveTrip } from "./trip.ts";
 
 function fakeTrip(

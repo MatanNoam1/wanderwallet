@@ -1,21 +1,24 @@
 // Money is stored as INTEGER minor units of its own currency, never as a float.
-// The number of minor units in one major unit depends on the currency:
-// USD/EUR have 2 decimals (100 cents = $1), JPY has 0 (1 yen IS the minor unit).
-// Storing "cents" blindly corrupts zero-decimal currencies, so every conversion
-// goes through decimalsFor().
+// All active currencies have 2 decimal places. Legacy entries kept for existing
+// DB records (JPY/GBP/THB) so display math stays correct after currency removal.
+// Every conversion goes through decimalsFor().
 
 export const CURRENCY_DECIMALS: Record<string, number> = {
   USD: 2,
   EUR: 2,
+  ILS: 2,
+  // legacy - kept so existing DB records display correctly
   GBP: 2,
   THB: 2,
-  JPY: 0,
   KRW: 0,
+  JPY: 0,
 };
 
 export const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$",
   EUR: "€",
+  ILS: "₪",
+  // legacy
   GBP: "£",
   JPY: "¥",
   THB: "฿",
@@ -23,7 +26,7 @@ export const CURRENCY_SYMBOLS: Record<string, string> = {
 };
 
 /** Currencies offered in the quick-add form. */
-export const SUPPORTED_CURRENCIES = ["USD", "EUR", "JPY", "GBP", "THB"] as const;
+export const SUPPORTED_CURRENCIES = ["USD", "EUR", "ILS"] as const;
 
 /** Decimal places for a currency. Unknown currencies default to 2. */
 export function decimalsFor(currency: string): number {

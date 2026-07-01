@@ -12,7 +12,7 @@ const PatchBody = z.object({
   paymentMethodId: z.string().min(1).nullable().optional(),
 });
 
-async function resolveExpense(id: string, userId: string) {
+async function resolveExpense(id: string) {
   const expense = await prisma.expense.findUnique({
     where: { id },
     select: { id: true, tripId: true },
@@ -33,12 +33,52 @@ export async function PATCH(
   const user = await requireUser();
   const { id } = await params;
 
-  const expense = await resolveExpense(id, user.id);
+  const expense = await resolveExpense(id);
   if (!expense) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
 
   const parsed = PatchBody.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  // Validate paidById belongs to the trip
+  if (parsed.data.paidById !== undefined) {
+    const member = await prisma.trip.findFirst({
+      where: {
+        id: expense.tripId,
+        OR: [{ ownerId: parsed.data.paidById }, { members: { some: { userId: parsed.data.paidById } } }],
+      },
+      select: { id: true },
+    });
+    if (!member) {
+      return NextResponse.json({ error: "PAYER_NOT_IN_TRIP" }, { status: 400 });
+    }
+  }
+
+  // Validate paymentMethodId belongs to trip's people
+  if (parsed.data.paymentMethodId !== undefined && parsed.data.paymentMethodId !== null) {
+    const trip = await prisma.trip.findUnique({
+      where: { id: expense.tripId },
+      select: {
+        ownerId: true,
+        members: { select: { userId: true } },
+      },
+    });
+    if (!trip) {
+      return NextResponse.json({ error: "TRIP_NOT_FOUND" }, { status: 404 });
+    }
+    const memberIds = trip.members.map(m => m.userId).filter((id): id is string => id !== null);
+    const peopleIds = [trip.ownerId, ...memberIds];
+    const method = await prisma.paymentMethod.findFirst({
+      where: {
+        id: parsed.data.paymentMethodId,
+        userId: { in: peopleIds },
+      },
+      select: { id: true },
+    });
+    if (!method) {
+      return NextResponse.json({ error: "PAYMENT_METHOD_NOT_IN_TRIP" }, { status: 400 });
+    }
   }
 
   const data: Record<string, unknown> = {};
@@ -59,7 +99,7 @@ export async function DELETE(
   const user = await requireUser();
   const { id } = await params;
 
-  const expense = await resolveExpense(id, user.id);
+  const expense = await resolveExpense(id);
   if (!expense) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
 
   await prisma.expense.delete({ where: { id } });

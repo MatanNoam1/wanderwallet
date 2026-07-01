@@ -1,4 +1,5 @@
-// Top bar: brand + trip account label + export action (export lands in P4).
+import Link from "next/link";
+
 export function TopBar({ subtitle }: { subtitle: string }) {
   return (
     <header className="topbar">
@@ -9,9 +10,14 @@ export function TopBar({ subtitle }: { subtitle: string }) {
           <div className="brand-sub">{subtitle}</div>
         </div>
       </div>
-      <button className="btn-ghost" type="button" disabled title="Coming in P4">
-        ↧ Export
-      </button>
+      <div style={{ display: "flex", gap: "8px" }}>
+        <Link href="/settings" className="btn-ghost">
+          Settings
+        </Link>
+        <Link href="/export" className="btn-ghost">
+          ↧ Export
+        </Link>
+      </div>
     </header>
   );
 }

@@ -30,7 +30,7 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const user = await requireUser();
+  await requireUser();
   const { id } = await params;
 
   const expense = await resolveExpense(id);
@@ -96,7 +96,7 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const user = await requireUser();
+  await requireUser();
   const { id } = await params;
 
   const expense = await resolveExpense(id);

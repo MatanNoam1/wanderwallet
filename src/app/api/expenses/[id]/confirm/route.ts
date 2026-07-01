@@ -6,7 +6,9 @@ import { toMinor, convertMinor, SUPPORTED_CURRENCIES } from "@/lib/money";
 import { getRate } from "@/lib/fx";
 import { CATEGORY_KEYS } from "@/lib/categories";
 import { sendTelegramReply } from "@/lib/telegram";
-import { ExpenseSource, ExpenseStatus } from "@prisma/client";
+import { ExpenseSource, ExpenseStatus, Category } from "@prisma/client";
+import { uploadAbsPath } from "@/lib/uploads";
+import { unlink } from "fs/promises";
 
 const ItemSchema = z.object({
   name: z.string().min(1).max(200),
@@ -40,12 +42,9 @@ export async function PATCH(
 
   const expense = await prisma.expense.findUnique({
     where: { id },
-    select: { tripId: true, source: true, status: true },
+    select: { tripId: true, source: true, status: true, imagePath: true },
   });
   if (!expense) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
-  if (expense.status !== ExpenseStatus.NEEDS_REVIEW) {
-    return NextResponse.json({ error: "NOT_NEEDS_REVIEW" }, { status: 409 });
-  }
 
   const trip = await prisma.trip.findFirst({
     where: {
@@ -56,11 +55,20 @@ export async function PATCH(
   });
   if (!trip) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
+  if (expense.status !== ExpenseStatus.NEEDS_REVIEW) {
+    return NextResponse.json({ error: "NOT_NEEDS_REVIEW" }, { status: 409 });
+  }
+
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   if (parsed.data.discard) {
     await prisma.expense.update({ where: { id }, data: { status: ExpenseStatus.FAILED } });
+    if (expense.imagePath) {
+      await unlink(uploadAbsPath(expense.imagePath)).catch((err) => {
+        console.error(`[confirm] failed to delete discarded upload ${expense.imagePath}:`, err);
+      });
+    }
     return NextResponse.json({});
   }
 
@@ -82,7 +90,7 @@ export async function PATCH(
           qty: it.qty,
           unitPriceMinor: toMinor(it.unitPrice, b.currency),
           lineTotalMinor: toMinor(it.total, b.currency),
-          category: it.category as never,
+          category: it.category as Category | null,
         })),
       });
     }
@@ -95,7 +103,7 @@ export async function PATCH(
         fxRate,
         fxRateDate: fxRate ? new Date() : null,
         merchant: b.merchant ?? null,
-        category: b.category as never,
+        category: b.category as Category,
         note: b.note ?? null,
         status: ExpenseStatus.CONFIRMED,
       },

@@ -5,7 +5,8 @@ import { fromMinor, decimalsFor } from "@/lib/money";
 
 function csvCell(value: string | null | undefined): string {
   const s = value ?? "";
-  return `"${s.replace(/"/g, '""')}"`;
+  const safe = /^[=+\-@]/.test(s) ? `\t${s}` : s;
+  return `"${safe.replace(/"/g, '""')}"`;
 }
 
 export async function GET(
@@ -52,7 +53,7 @@ export async function GET(
   ].join(",");
 
   const rows = expenses.map((e) => {
-    const baseAmt = fromMinor(e.baseAmountMinor, cur).toFixed(2);
+    const baseAmt = fromMinor(e.baseAmountMinor, cur).toFixed(decimalsFor(cur));
     const origDec = decimalsFor(e.originalCurrency);
     const origAmt = fromMinor(e.originalAmountMinor, e.originalCurrency).toFixed(origDec);
     return [
